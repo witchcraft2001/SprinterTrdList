@@ -1,0 +1,266 @@
+	DEVICE ZXSPECTRUM128
+
+        org #8100-512
+STARTPRG
+	INCLUDE	"dss.inc"
+	INCLUDE "dos_equ.asm"
+
+CR	EQU	13
+LF	EQU	10
+EN	EQU	00
+
+	DB	"EXE"	;EXE ID
+	DB	#00	;EXE VERSION
+	DW	#0200	;CODE OFFSET LOW
+	DW	#0000	;CODE OFFSET HIGH
+	DW	#0000	;END-BEG ;PRIMARY LOADER
+	DW	#0000	;
+	DW	#0000	;RESERVED
+	DW	#0000	;
+	DW	#8100	;LOAD ADDRESS
+	DW	START	;START ADDRESS
+	DW	#BFFF	;STACK ADDRESS
+	ORG	#8100
+
+START	PUSH	IX
+	LD	HL,MS0		;œ≈◊¿“‹ œ–»¬≈“—“¬»ﬂ
+	LD	C,PCHARS
+	RST	#10
+;	LD	HL,DIR_A	;”«Õ¿≈Ã “≈ ”Ÿ»≈ œ”“‹ » ƒ»— 
+;	LD	C,CURDIR
+;	RST	#10
+;	LD	C,CURDISK
+;	RST	#10
+;	JR	C,NSTART1
+;	ADD	A,"A"
+;	LD	(DRIVE_A),A
+NSTART1	POP	HL
+	INC	HL
+NEXTSW1	LD	DE,TEMPSTR
+	LD	B,0
+	LD	C,GSWITCH	;–‡Á·Ó ÍÓÏ‡Ì‰ÌÓÈ ÒÚÓÍË
+	RST	#10
+	PUSH	AF
+	PUSH	HL
+	LD	HL,TEMPSTR
+	LD	BC,#45
+	RST	#10
+	push	hl
+	push	af
+	ld	hl,TEMPSTR
+	ld	c,PCHARS
+	rst	#10
+	ld	hl,TMP_FS+3
+	ld	c,PCHARS
+	rst	#10
+
+	pop	af
+	pop	hl
+	BIT	0,A
+	JR	NZ,FILENAME_STR
+	BIT	3,A
+	JP	NZ,DRV_STR
+	LD	A,(TEMPSTR)
+	CP	"/"
+	JR	NZ,NEXTSW
+	LD	A,(TEMPSTR+1)
+	CP	"?"		;œŒƒ— ¿« ¿
+	JR	NZ,NEXTSW
+	LD	HL,MS5
+	LD	C,PCHARS
+	RST	#10
+	POP	HL
+	POP	AF
+	JR	NQUIT
+NEXTSW	POP	HL
+	POP	AF
+	JR	NC,NEXTSW1
+
+NQUIT	LD	B,0
+QUIT	LD	C,#41
+	RST	#10
+	RET 
+BADRIVE
+	POP	HL
+	POP	AF
+	LD	HL,MS1
+EQUIT	LD	C,PCHARS
+	push	af
+	RST	#10
+	pop	af
+	call	PrErDss
+	SCF
+	LD	B,1
+	JP	QUIT
+;œ¿–¿Ã≈“– = »Ãﬂ ‘¿…À¿
+FILENAME_STR
+	POP	HL
+	POP	AF
+	LD	HL,TEMPSTR	;OPEN TRD-FILE
+	LD	A,1
+	LD	C,OPEN
+	RST	#10
+	
+	LD	HL,MS4
+	JR	C,EQUIT
+	LD	(TRDFM),A	;SAVE FILE-MANIPULATOR
+	LD	HL,#C000	;READING FILE
+	LD	DE,9*256
+	LD	C,READ
+	RST	#10
+	LD	HL,MS5
+	JR	C,EQUIT
+
+				;¬€¬Œƒ »Õ‘Œ Œ ƒ»— ≈
+	LD	HL,#C8F5	;»Ãﬂ ƒ»— ¿
+	LD	DE,DISK_NAME
+	LD	BC,8
+	LDIR
+	LD	A,(#C8E4)	;‘¿…ÀŒ¬ Õ¿ ƒ»— ≈
+	PUSH	AF
+	LD	L,A
+	LD	BC,FILES_T
+	CALL	PRNUM
+	LD	HL,(#C8E5)
+	LD	BC,FREE_SP
+	CALL	PRNUM0
+	LD	HL,MS8
+	LD	C,PCHARS
+	RST	#10
+	POP	AF		;‚ ¿-  ŒÀ-¬Œ ‘¿…ÀŒ¬ Õ¿ ƒ»— ≈
+				;¬˚‚Ó‰ ÎËÒÚËÌ„‡
+	LD	B,A
+	LD	HL,#C000	;¿ƒ–≈—  ¿“¿ÀŒ√¿
+CAT_LOOP
+	PUSH	HL
+	PUSH	BC
+	LD	DE,TMP_FNAME
+	LD	BC,8
+	LDIR
+	LD	A,(TMP_FNAME)
+	DEC	A
+	JR	NZ,NODEL
+	LD	A,"$"
+	LD	(TMP_FNAME),A
+NODEL	LD	A,32
+	LD	(TMP_EXT+1),A
+	LD	(TMP_EXT+2),A
+	LD	A,(HL)		;œ–Œ¬≈– ¿  ŒÀ-¬¿ —»Ã¬. ¬ –¿—ÿ»–≈Õ»»
+	LD	BC,1
+	BIT	5,A
+	JR	Z,ONESIM
+	LD	C,3
+ONESIM	LD	DE,TMP_EXT
+	LDIR
+	BIT	5,A
+	JR	Z,ONESIM1
+	DEC	HL
+	DEC	HL
+ONESIM1	LD	E,(HL)		;START
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	EX	HL,DE
+	LD	BC,TMP_ST
+	CALL	PRNUM0
+	EX	HL,DE
+	LD	E,(HL)		;LENGHT
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	EX	HL,DE
+	LD	BC,TMP_LN
+	CALL	PRNUM0
+	EX	HL,DE
+	PUSH	HL		;SEC LEN
+	LD	L,(HL)
+	LD	BC,TMP_SL
+	CALL	PRNUM
+	POP	HL
+	INC	HL
+	PUSH	HL		;F.SEC
+	LD	L,(HL)
+	LD	BC,TMP_FS
+	CALL	PRNUM
+	POP	HL
+	INC	HL		;F.TRK
+	LD	L,(HL)
+	LD	BC,TMP_FT
+	CALL	PRNUM
+	LD	HL,TMP_LINE
+	LD	C,PCHARS
+	RST	#10
+	POP	BC
+	POP	HL
+	LD	DE,16
+	ADD	HL,DE
+	DJNZ	CAT_LOOP
+	
+	JP	NQUIT
+	
+DRV_STR	LD	A,(TEMPSTR)
+	CP	"A"
+	JP	C,BADRIVE
+	CP	"z"+1
+	JP	NC,BADRIVE
+	LD	A,(TEMPSTR)
+	CP	"a"
+	JR	C,NOSUB
+	SUB	#20
+NOSUB	SUB	"A"
+	LD	(DRIVE),A
+	CP	3
+	JP	NC,BADRIVE
+	POP	HL
+	POP	AF
+	LD	HL,MS3
+	JP	EQUIT
+
+	INCLUDE	"PRNUM.ASM"
+	include	"error.asm"
+
+MS0	DB	"TRD List v.0.1.1b"
+	DB	CR,LF,"(C) 2011-2021 Hard/WCG",CR,LF,CR,LF,EN
+
+MS1	DB	"Illegal disk letter!", CR, LF, EN
+
+MS2	DB	"Usage : TRDLIST [filename]",CR,LF
+	DB	"	filename - name of trd-image",CR,LF,EN
+	
+MS3	DB	"Sorry!!! This feature is not worked in this version!",CR,LF,EN
+
+MS4	DB	"File opening error!", CR,LF,EN
+
+MS5	DB	"File reading error!", CR,LF,EN
+
+MS8	DB	"Title: [TRDOSDSK___]",CR,LF
+DISK_NAME	EQU	$-14
+	DB	"Files: 000"
+FILES_T	EQU	$-3
+	DB	"   Free sec.: 0000 ",CR,LF,CR,LF
+FREE_SP	EQU	$-9
+	DB	"Name     Ext  Start Lenght Sec.Len F.Trk F.Sec",CR,LF
+	DB	"----------------------------------------------",CR,LF,EN
+TMP_LINE
+TMP_FNAME
+	DB	"FILENAME."
+TMP_EXT	DB	"EXT  "
+TMP_ST	DB	"00000 "
+TMP_LN	DB	"00000  "
+TMP_SL	DB	"000     "
+TMP_FT	DB	"000   "
+TMP_FS	DB	"000",CR,LF,EN
+
+
+TRDFM	DB	0	;trd-file descriptor
+
+TRDFILE	DB "trdfile0.trd",0,0
+DRIVE	DB	0
+
+TEMPSTR
+	DS	256
+TMP_PATH
+	DS	256
+
+ENDPRG
+	savebin	"trdlist.exe",STARTPRG,ENDPRG-STARTPRG

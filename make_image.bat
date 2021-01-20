@@ -4,7 +4,6 @@ osfmount.com -D -m X:
 
 echo Assembling ...
 tools\sjasmplus\sjasmplus.exe --lst=TRDLIST.lst --lstlab TRDLIST.asm
-copy /Y readme.txt trdlist.txt
 if errorlevel 1 goto ERR
 
 echo Preparing floppy disk image ...
